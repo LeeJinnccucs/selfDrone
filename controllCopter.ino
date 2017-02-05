@@ -18,7 +18,7 @@
 #define LeftRight 1
 #define ForBackward 2
 #define Matchup 6
-
+/*
 byte turnLeft[] = {0xcc, 0x82, 0x75, 0x83, 0x30, 0x00, 0x44, 0x33};
 byte turnRight[] = {0xcc, 0x82, 0x75, 0x84, 0xd0, 0x00, 0xa3, 0x33};
 byte shiftLeft[] = {0xcc, 0x5a, 0x75, 0x80, 0x80, 0x00, 0x2f, 0x33};
@@ -29,8 +29,8 @@ byte backward[] = {0xcc, 0x82, 0x4d, 0x80, 0x80, 0x00, 0xcf, 0x33};
 byte decend[] = {0xcc, 0x98, 0x78, 0x00, 0x80, 0x00, 0x60, 0x33};
 byte acend[] = {0xcc, 0x98, 0x78, 0xff, 0x80, 0x00, 0x9f, 0x33};
 
-//byte takeOff[] = {0xcc, 0x80, 0x69, 0x80, 0x80, 0x01, 0xe8, 0x33};
-//byte landing[] = {0xcc, 0x80, 0x69, 0x80, 0x80, 0x02, 0xeb, 0x33};
+byte takeOff[] = {0xcc, 0x80, 0x69, 0x80, 0x80, 0x01, 0xe8, 0x33};
+byte landing[] = {0xcc, 0x80, 0x69, 0x80, 0x80, 0x02, 0xeb, 0x33};*/
 byte balance[] = {0xcc, 0x80, 0x80, 0x80, 0x80, 0x00, 0x00, 0x33};
 byte drone[] = {0xe0, 0xb9, 0x4d, 0x6d, 0xa5, 0xf0};
 
@@ -87,26 +87,27 @@ void setup() {
 
 int countL = 0;
 
-int LRforMatch = 256;
-int FBforMatch = 256;
+int LRforMatch = 256; //用來計算第七位的左右平移變數
+int FBforMatch = 256; //前後平移變數 因為圓點是零 設定256在之後紀錄變化
+                      //只要-256就可以得到相較於零的正負值 方便計算
 
-bool isAdjusted = false;
+bool isAdjusted = false; //檢查調整用
 
 void loop() {
 
     delay(30);
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < 8; i++) //沒動作就傳送封包
       {
         wifly.write(balance[i]);
         Serial.print(balance[i], HEX);
       }
     Serial.println("");
-    if(isAdjusted == false)
+    if(isAdjusted == false)//檢查是否平衡完成 以便後續動作
     {
       
       while (analogRead(X_pin)<300)
       {
-        if((FBforMatch-256)>24)
+        if((FBforMatch-256)>24) //超過原本平衡設定的最大值24 就僅傳送封包
         {
           for(int i = 0; i < 8; i++)
           {
@@ -116,10 +117,10 @@ void loop() {
         }
         else
         {
-          balance[ForBackward]++;
-          FBforMatch++;
-          balance[Matchup] = findMatchup(LRforMatch, FBforMatch);
-          for(int i = 0; i < 8; i++)
+          balance[ForBackward]++; //調整動作對應位置封包
+          FBforMatch++; //記錄相較於原點的變化
+          balance[Matchup] = findMatchup(LRforMatch, FBforMatch); //計算第七位
+          for(int i = 0; i < 8; i++) //並傳送封包
           {
             wifly.write(balance[i]);
           }
@@ -196,7 +197,7 @@ void loop() {
   
   
    
-/*    while( analogRead(X_pin)<300 )
+/*    while( analogRead(X_pin)<300 )  // 這裡是間歇轉動飛行
     {
        for(int i = 0 ; i < 8 ; i++)
        {
@@ -296,16 +297,16 @@ void loop() {
     }*/
 }
 
-byte findMatchup(int LR, int FB)
+byte findMatchup(int LR, int FB) // 此函式計算封包第七位數值
 {
   int temp1 = 0;
   int temp2 = 0;
-  temp1 = LR-256;
+  temp1 = LR-256;  //前面變數的設定 讓這裡計算較方便
   temp2 = FB-256;
-  if (temp1*temp2 == 0)
+  if (temp1*temp2 == 0) //其中一個為0 
   {
       if(temp1 < 0)
-        return char(256-abs(temp1));
+        return char(256-abs(temp1)); //256 當作從零減
       else if(temp1 > 0)
         return char(abs(temp1));
       else
@@ -318,16 +319,16 @@ byte findMatchup(int LR, int FB)
           return 0x00;
       }     
   }
-  else
+  else //兩者皆不為零 需要計算
   {
-      if(abs(temp1) == abs(temp2))
+      if(abs(temp1) == abs(temp2)) //兩者數值相等
       {
          if(temp1*temp2 > 0)
             return char(abs(temp1)+abs(temp2));
          else
             return 0x00;
       }
-      else
+      else //數值不等，用較大數值去減較小數值，然後判斷相乘正負來決定從零加還是從256減 
       {
          int temp3 = 0;
          temp3 = max(abs(temp1),abs(temp2)) - min(abs(temp1),abs(temp2));
